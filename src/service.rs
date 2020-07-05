@@ -57,14 +57,22 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
             run_proxy(request, config.remote_uri()).await
         }
     } else {
-        if request.uri().path() == "/" {
-            run_login_page(request, config)
-        } else {
-            Response::builder()
-                .status(StatusCode::TEMPORARY_REDIRECT)
-                .header("Location", "/")
-                .body(Body::empty())
-                .unwrap()
+        match request.uri().path() {
+            "/" => run_login_page(request, config),
+            "/proxy:styles.css" => {
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("Content-Type", "text/css")
+                    .body(Body::from(include_str!("../data/styles.css")))
+                    .unwrap()
+            }
+            _ => {
+                Response::builder()
+                    .status(StatusCode::TEMPORARY_REDIRECT)
+                    .header("Location", "/")
+                    .body(Body::empty())
+                    .unwrap()
+            }
         }
     }
 }
