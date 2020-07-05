@@ -29,8 +29,6 @@ pub trait CredentialsStore{
         hasher.update(b":");
         hasher.update(password);
         let hash = hasher.finalize();
-        println!("{:?}", hash);
-
         credentials.password_hash[..] == hash[..]
     }
 }
