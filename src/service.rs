@@ -256,6 +256,7 @@ mod tests {
         use super::super::handle;
         use std::time::SystemTime;
         use futures::stream::StreamExt;
+        use cookie::Cookie;
 
         #[tokio::test]
         async fn test_redirecting_unauthenticated_to_login_page(){
@@ -338,6 +339,64 @@ mod tests {
                 resp.headers().get("Set-Cookie").unwrap(),
                 "proxy_auth=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
             );
+        }
+
+        #[tokio::test]
+        async fn test_logging_in_wrong_password(){
+            let config = ProxyConfig::from_values(
+                "localhost",
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+            ).unwrap();
+
+            let request = Request::builder()
+                .uri("/".parse::<Uri>().unwrap())
+                .method("POST")
+                .body(Body::from("username=user&password=wrong_password")).unwrap();
+
+            let resp = handle(request, Arc::new(config)).await;
+            assert_eq!(resp.status(), 200);
+            assert_eq!(resp.headers().get("Set-Cookie"), None);
+        }
+
+        #[tokio::test]
+        async fn test_logging_in(){
+            let mock_server = MockServer::start();
+            let mock = Mock::new()
+                .expect_method(httpmock::Method::GET)
+                .expect_path("/")
+                .return_body("remote content")
+                .create_on(&mock_server);
+
+            let config = ProxyConfig::from_values(
+                &format!("{}", mock_server.address()),
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+            ).unwrap();
+
+            let request = Request::builder()
+                .uri("/".parse::<Uri>().unwrap())
+                .method("POST")
+                .body(Body::from("username=user&password=password")).unwrap();
+
+            let config = Arc::new(config);
+            let resp = handle(request, config.clone()).await;
+            assert_eq!(resp.status(), 303);
+            assert_eq!(resp.headers().get("Location").unwrap(), "/");
+            assert_eq!(mock.times_called(), 0);
+
+            let cookie = resp.headers().get("Set-Cookie").unwrap().to_str().unwrap();
+            let token = String::from(Cookie::parse(cookie).unwrap().value());
+
+            let request = Request::builder()
+                .uri("/".parse::<Uri>().unwrap())
+                .method("GET")
+                .header("Cookie", format!("proxy_auth={}", token))
+                .body(Body::empty()).unwrap();
+
+            let resp = handle(request, config.clone()).await;
+            assert_eq!(resp.status(), 200);
+            assert_eq!(mock.times_called(), 1);
         }
     }
 }
