@@ -1,13 +1,14 @@
 use std::sync::Arc;
-use hyper::{Request, Response, Body};
+use hyper::{Request, Response, Body, StatusCode};
 use hyper::header::HeaderValue;
 use cookie::Cookie;
 use crate::config::ProxyConfig;
 use crate::proxy::run_proxy;
 use crate::auth::{AuthConfig, Token};
 use std::time::SystemTime;
+use std::ops::Deref;
 
-fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: Request<B>, config: &'a T) -> bool{
+fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a T) -> bool{
     match request.headers().get("Cookie").map(HeaderValue::to_str) {
         Some(Ok(cookies)) => {
             let auth_cookie = cookies.split(";")
@@ -32,8 +33,22 @@ fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: Request<B>, config: &'a T
 
 
 pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Response<Body> {
-    run_proxy(request, config.remote_uri()).await
+    let authenticated = is_authenitcated(&request, config.deref());
+    if authenticated {
+        run_proxy(request, config.remote_uri()).await
+    } else {
+        if request.uri().path() == "/" {
+            Response::builder().status(StatusCode::OK).body(Body::from("login")).unwrap()
+        } else {
+            Response::builder()
+                .status(StatusCode::TEMPORARY_REDIRECT)
+                .header("Location", "/")
+                .body(Body::empty())
+                .unwrap()
+        }
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -47,7 +62,7 @@ mod tests {
     fn test_auth_no_cookies() {
         let request = Request::builder().body(()).unwrap();
         let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-        assert!(!is_authenitcated(request, &config));
+        assert!(!is_authenitcated(&request, &config));
     }
 
     #[test]
@@ -58,7 +73,7 @@ mod tests {
             .unwrap();
 
         let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-        assert!(!is_authenitcated(request, &config));
+        assert!(!is_authenitcated(&request, &config));
     }
 
     #[test]
@@ -69,7 +84,7 @@ mod tests {
             .unwrap();
 
         let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-        assert!(!is_authenitcated(request, &config));
+        assert!(!is_authenitcated(&request, &config));
     }
 
     #[test]
@@ -80,7 +95,7 @@ mod tests {
             .unwrap();
 
         let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-        assert!(!is_authenitcated(request, &config));
+        assert!(!is_authenitcated(&request, &config));
     }
 
     #[test]
@@ -95,7 +110,7 @@ mod tests {
             ))
             .body(())
             .unwrap();
-        assert!(!is_authenitcated(request, &config));
+        assert!(!is_authenitcated(&request, &config));
     }
 
     #[test]
@@ -110,6 +125,6 @@ mod tests {
             ))
             .body(())
             .unwrap();
-        assert!(is_authenitcated(request, &config));
+        assert!(is_authenitcated(&request, &config));
     }
 }
