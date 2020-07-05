@@ -74,7 +74,7 @@ impl Token {
 
         match String::from_utf8(token) {
             Ok(token_json) => match serde_json::from_str::<Token>(&token_json) {
-                Ok(value) => if value.expiration < time {
+                Ok(value) => if value.expiration > time {
                     Ok(())
                 } else {
                     Err(VerificationError::ExpirationError)
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_token_expired() {
         assert_eq!(
-            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg", 10203030),
+            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg", 10203060),
             Err(VerificationError::ExpirationError)
         );
     }
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn test_valid_token() {
         assert_eq!(
-            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg", 10203060),
+            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg", 10203030),
             Ok(())
         );
     }
