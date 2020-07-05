@@ -17,6 +17,8 @@ hyper = "0.13.6"
 clap = "2.33.1"
 rstest = "0.6.4"
 http = "0.2.1"
+futures = "0.3.5"
 
 [dev-dependencies]
 hex-literal = "0.2.1"
+httpmock = "0.4.0"

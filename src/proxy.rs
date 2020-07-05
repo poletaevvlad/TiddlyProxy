@@ -1,4 +1,4 @@
-use hyper::Uri;
+use hyper::{Uri, Request, Body, Response, Client, StatusCode};
 use http::uri::Builder;
 
 
@@ -28,11 +28,30 @@ fn transfer_parts(local_uri: &Uri, remote_uri: &Uri) -> Uri {
 }
 
 
+async fn run_proxy(req: Request<Body>, remote_uri: &Uri) -> Response<Body> {
+    let client = Client::new();
+    let mut request_builder = Request::builder()
+        .uri(transfer_parts(req.uri(), remote_uri))
+        .method(req.method());
+    for (key, value) in req.headers().iter() {
+        request_builder = request_builder.header(key, value);
+    }
+    match client.request(request_builder.body(req.into_body()).unwrap()).await {
+        Ok(response) => response,
+        Err(_) => Response::builder().status(StatusCode::BAD_GATEWAY).body(Body::empty()).unwrap()
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
-    use hyper::Uri;
-    use super::transfer_parts;
+    use http::{Uri, Request};
+    use httpmock::{Mock, MockServer};
+    use super::{run_proxy, transfer_parts};
+    use hyper::{Body};
+    use futures::stream::StreamExt;
+
 
     #[rstest(from, to, expected,
         case("http://localhost:5000/", "http://localhost:7000/", "http://localhost:7000/"),
@@ -53,6 +72,78 @@ mod tests {
     fn test_transfer_parts(from: &str, to: &str, expected: &str){
         let actual = transfer_parts(&from.parse::<Uri>().unwrap(), &to.parse::<Uri>().unwrap());
         assert_eq!(actual, expected.parse::<Uri>().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_get_proxy(){
+        let mock_server = MockServer::start();
+        let url: Uri = format!("http://{}/", mock_server.address()).parse().unwrap();
+
+        let mock = Mock::new()
+            .expect_method(httpmock::Method::GET)
+            .expect_path("/hello")
+            .expect_query_param("q", "123")
+            .expect_header("X-Custom-Header", "Header-Value")
+            .return_status(200)
+            .return_header("X-Return-Header", "Return-Header")
+            .return_body("Hello, world")
+            .create_on(&mock_server);
+
+        let request = Request::builder()
+            .uri("/hello?q=123".parse::<Uri>().unwrap())
+            .method("GET")
+            .header("X-Custom-Header", "Header-Value")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = run_proxy(request, &url).await;
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.headers().get("X-Return-Header").unwrap(), "Return-Header");
+        let body = String::from_utf8(response.into_body()
+            .map(|c| c.unwrap().to_vec())
+            .concat().await).unwrap();
+        assert_eq!(body, "Hello, world");
+        assert_eq!(mock.times_called(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_post_proxy(){
+        let mock_server = MockServer::start();
+        let url: Uri = format!("http://{}/", mock_server.address()).parse().unwrap();
+
+        let mock = Mock::new()
+            .expect_method(httpmock::Method::POST)
+            .expect_path("/hello")
+            .expect_body("Body")
+            .return_status(200)
+            .return_body("Hello, world")
+            .create_on(&mock_server);
+
+        let request = Request::builder()
+            .uri("/hello?q=123".parse::<Uri>().unwrap())
+            .method("POST")
+            .body(Body::from("Body"))
+            .unwrap();
+
+        let response = run_proxy(request, &url).await;
+        assert_eq!(response.status(), 200);
+        let body = String::from_utf8(response.into_body()
+            .map(|c| c.unwrap().to_vec())
+            .concat().await).unwrap();
+        assert_eq!(body, "Hello, world");
+        assert_eq!(mock.times_called(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_no_remote(){
+        let url: Uri = format!("http://127.0.0.1:45792/").parse().unwrap();
+        let request = Request::builder()
+            .uri("/path".parse::<Uri>().unwrap())
+            .method("GET")
+            .body(Body::empty())
+            .unwrap();
+        let response = run_proxy(request, &url).await;
+        assert_eq!(response.status(), 502);
     }
 
 }
