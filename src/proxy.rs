@@ -28,7 +28,7 @@ fn transfer_parts(local_uri: &Uri, remote_uri: &Uri) -> Uri {
 }
 
 
-async fn run_proxy(req: Request<Body>, remote_uri: &Uri) -> Response<Body> {
+pub async fn run_proxy(req: Request<Body>, remote_uri: &Uri) -> Response<Body> {
     let client = Client::new();
     let mut request_builder = Request::builder()
         .uri(transfer_parts(req.uri(), remote_uri))

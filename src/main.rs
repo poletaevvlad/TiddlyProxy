@@ -4,17 +4,13 @@ use hyper::service::{service_fn, make_service_fn};
 use std::net::SocketAddr;
 use hyper::server::conn::AddrStream;
 use std::convert::Infallible;
-use hyper::{Body, Request, Response};
+use hyper::{Body, Request};
 use futures::future::FutureExt;
 
 mod proxy;
 mod config;
 use config::{parse_options, ProxyConfig};
-
-
-async fn handle(_req: Request<Body>, _config: Arc<ProxyConfig>) -> Response<Body> {
-    Response::new(Body::from("Hello, world"))
-}
+mod service;
 
 
 #[tokio::main]
@@ -36,7 +32,7 @@ async fn main() {
         async move {
             Ok::<_, Infallible>(service_fn(move |request: Request<Body>| {
                 let config_arc = Arc::clone(&config_arc);
-                handle(request, config_arc).map(Ok::<_, Infallible>)
+                service::handle(request, config_arc).map(Ok::<_, Infallible>)
             }))
         }
     };
