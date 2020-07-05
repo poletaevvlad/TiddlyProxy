@@ -50,7 +50,7 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
                 .finish();
 
             Response::builder()
-                .status(StatusCode::TEMPORARY_REDIRECT)
+                .status(StatusCode::SEE_OTHER)
                 .header("Location", "/")
                 .header("Set-Cookie", &clear_cookie.to_string())
                 .body(Body::empty())
@@ -70,7 +70,7 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
             }
             _ => {
                 Response::builder()
-                    .status(StatusCode::TEMPORARY_REDIRECT)
+                    .status(StatusCode::SEE_OTHER)
                     .header("Location", "/")
                     .body(Body::empty())
                     .unwrap()
@@ -276,7 +276,7 @@ mod tests {
                 .body(Body::empty()).unwrap();
 
             let resp = handle(request, Arc::new(config)).await;
-            assert_eq!(resp.status(), 307);
+            assert_eq!(resp.status(), 303);
             assert_eq!(resp.headers().get("Location").unwrap(), "/");
             assert_eq!(mock.times_called(), 0);
         }
@@ -331,7 +331,7 @@ mod tests {
                 .body(Body::empty()).unwrap();
 
             let resp = handle(request, Arc::new(config)).await;
-            assert_eq!(resp.status(), 307);
+            assert_eq!(resp.status(), 303);
             assert_eq!(resp.headers().get("Location").unwrap(), "/");
             assert_eq!(
                 resp.headers().get("Set-Cookie").unwrap(),
