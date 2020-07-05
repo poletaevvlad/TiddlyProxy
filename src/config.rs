@@ -1,6 +1,8 @@
 use http::uri::Uri;
 use clap::{App, Arg, ArgMatches};
 use generic_array::{GenericArray, ArrayLength};
+use generic_array::typenum::U32;
+use crate::auth::AuthConfig;
 
 
 pub fn parse_options<'a>() -> ArgMatches<'a>{
@@ -10,29 +12,54 @@ pub fn parse_options<'a>() -> ArgMatches<'a>{
             .long("wiki_url")
             .takes_value(true)
             .required(true))
+        .arg(Arg::with_name("secret")
+            .help("Randomly generated 32-byte hexadecimal string")
+            .long("secret")
+            .takes_value(true)
+            .required(true))
         .get_matches()
 }
 
 
 #[derive(Debug)]
 pub struct ProxyConfig {
-    remote_uri: Uri
+    remote_uri: Uri,
+    secret: GenericArray<u8, U32>
 }
 
 impl ProxyConfig {
-    pub fn from_args<'a>(matches: &ArgMatches<'a>) -> Result<ProxyConfig, (&'static str, String)>{
-        let remote_uri = match parse_wiki_uri(matches.value_of("wiki_url").unwrap()) {
+    pub fn from_values(wiki_url: &str, secret: &str) -> Result<ProxyConfig, (&'static str, String)> {
+        let remote_uri = match parse_wiki_uri(wiki_url) {
             Ok(uri) => uri,
             Err(error) => return Err(("wiki_url", error))
         };
 
-        Ok(ProxyConfig {
-            remote_uri: remote_uri
+        let secret = match parse_hex_string::<U32>(secret) {
+            Ok(buffer) => buffer,
+            Err(error) => return Err(("secret", error))
+        };
+
+        Ok(ProxyConfig{
+            remote_uri: remote_uri,
+            secret: secret
         })
+    }
+
+    pub fn from_args<'a>(matches: &ArgMatches<'a>) -> Result<ProxyConfig, (&'static str, String)> {
+        ProxyConfig::from_values(
+            matches.value_of("wiki_url").unwrap(),
+            matches.value_of("secret").unwrap()
+        )
     }
 
     pub fn remote_uri(&self) -> &Uri {
         &self.remote_uri
+    }
+}
+
+impl<'a> AuthConfig<'a> for ProxyConfig {
+    fn secret(&'a self) -> &'a [u8;32] {
+        self.secret.as_ref()
     }
 }
 

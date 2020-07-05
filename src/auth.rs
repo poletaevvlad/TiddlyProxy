@@ -5,7 +5,7 @@ use generic_array::typenum::U32;
 use base64::{encode_config_buf, decode_config};
 
 
-trait AuthConfig<'a> {
+pub trait AuthConfig<'a> {
     fn secret(&'a self) -> &'a [u8; 32];
 }
 
