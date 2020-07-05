@@ -164,7 +164,8 @@ mod tests {
             let mock_server = MockServer::start();
             let config = ProxyConfig::from_values(
                 &format!("{}", mock_server.address()),
-                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
             ).unwrap();
 
             let mock = Mock::new()
@@ -188,7 +189,8 @@ mod tests {
             let mock_server = MockServer::start();
             let config = ProxyConfig::from_values(
                 &format!("{}", mock_server.address()),
-                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
             ).unwrap();
 
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
@@ -219,7 +221,8 @@ mod tests {
         async fn test_logging_out(){
             let config = ProxyConfig::from_values(
                 "localhost",
-                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
             ).unwrap();
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
             let token = Token::new(now + 100).generate(&config);

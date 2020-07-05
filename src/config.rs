@@ -19,6 +19,11 @@ pub fn parse_options<'a>() -> ArgMatches<'a>{
             .long("secret")
             .takes_value(true)
             .required(true))
+        .arg(Arg::with_name("users")
+            .help("Users' credentials")
+            .long("users")
+            .takes_value(true)
+            .required(true))
         .get_matches()
 }
 
@@ -31,7 +36,7 @@ pub struct ProxyConfig {
 }
 
 impl ProxyConfig {
-    pub fn from_values(wiki_url: &str, secret: &str) -> Result<ProxyConfig, (&'static str, String)> {
+    pub fn from_values(wiki_url: &str, secret: &str, users: &str) -> Result<ProxyConfig, (&'static str, String)> {
         let remote_uri = match parse_wiki_uri(wiki_url) {
             Ok(uri) => uri,
             Err(error) => return Err(("wiki_url", error))
@@ -42,17 +47,29 @@ impl ProxyConfig {
             Err(error) => return Err(("secret", error))
         };
 
+        let users = match parse_credentials(users) {
+            Ok(users) => {
+                let mut map = HashMap::new();
+                for (username, credentials) in users {
+                    map.insert(username, credentials);
+                }
+                map
+            },
+            Err(error) => return Err(("users", error))
+        };
+
         Ok(ProxyConfig{
             remote_uri: remote_uri,
             secret: secret,
-            users: HashMap::new()
+            users: users
         })
     }
 
     pub fn from_args<'a>(matches: &ArgMatches<'a>) -> Result<ProxyConfig, (&'static str, String)> {
         ProxyConfig::from_values(
             matches.value_of("wiki_url").unwrap(),
-            matches.value_of("secret").unwrap()
+            matches.value_of("secret").unwrap(),
+            matches.value_of("users").unwrap()
         )
     }
 
@@ -266,8 +283,9 @@ mod tests {
     mod test_parsing_credentials {
         use rstest::rstest;
         use hex_literal::hex;
-        use crate::credentials::UserCredentials;
+        use crate::credentials::{UserCredentials, CredentialsStore};
         use super::super::parse_credentials;
+        use super::super::ProxyConfig;
 
         #[rstest(input, error,
             case ("user:password", "Wrong number of components"),
@@ -325,6 +343,19 @@ mod tests {
         )]
         fn test_valid_credentials(input: &str, expected: Vec<(Option<String>, UserCredentials)>){
             assert_eq!(parse_credentials(input).unwrap(), expected)
+        }
+
+        #[test]
+        fn test_credentials_store(){
+            let config = ProxyConfig::from_values(
+                "localhost",
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user1:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8; \
+                 user2:FEDCBA:61aa1f3ae8e8cfafe089ed0c0c115f316e126c27032ef171e89329cb5de67145"
+            ).unwrap();
+            assert_eq!(config.credentials_for(None), None);
+            assert!(config.can_login(Some("user1"), "password"));
+            assert!(config.can_login(Some("user2"), "another"));
         }
     }
 }
