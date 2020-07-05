@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use serde::{Serialize};
 use hyper::{Request, Response, Body, StatusCode};
 use hyper::header::HeaderValue;
 use cookie::Cookie;
@@ -8,6 +9,7 @@ use crate::auth::{AuthConfig, Token};
 use std::time::SystemTime;
 use std::ops::Deref;
 use time::OffsetDateTime;
+use tinytemplate::TinyTemplate;
 
 
 fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a T) -> bool{
@@ -56,7 +58,7 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
         }
     } else {
         if request.uri().path() == "/" {
-            Response::builder().status(StatusCode::OK).body(Body::from("login")).unwrap()
+            run_login_page(request, config)
         } else {
             Response::builder()
                 .status(StatusCode::TEMPORARY_REDIRECT)
@@ -65,6 +67,27 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
                 .unwrap()
         }
     }
+}
+
+
+#[derive(Serialize)]
+struct LoginFormContext {
+
+}
+
+
+fn run_login_page(_request: Request<Body>, _config: Arc<ProxyConfig>) -> Response<Body> {
+    let mut template = TinyTemplate::new();
+    template.add_template("login", include_str!("../data/login.html")).unwrap();
+
+    let context = LoginFormContext{
+    };
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/html")
+        .body(Body::from(template.render("login", &context).unwrap()))
+        .unwrap()
 }
 
 
