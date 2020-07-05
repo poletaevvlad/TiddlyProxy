@@ -31,6 +31,10 @@ pub trait CredentialsStore{
         let hash = hasher.finalize();
         credentials.password_hash[..] == hash[..]
     }
+
+    fn requires_username(&self) -> bool {
+        self.credentials_for(None).is_none()
+    }
 }
 
 

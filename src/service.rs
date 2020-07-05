@@ -82,7 +82,8 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
 
 #[derive(Serialize)]
 struct LoginFormContext {
-    wrong_credentials: bool
+    wrong_credentials: bool,
+    requires_username: bool
 }
 
 fn extract_form_fields(body: &[u8]) -> (Option<String>, Option<String>) {
@@ -155,7 +156,8 @@ async fn run_login_page(request: Request<Body>, config: Arc<ProxyConfig>) -> Res
     template.add_template("login", include_str!("../data/login.html")).unwrap();
 
     let context = LoginFormContext{
-        wrong_credentials: wrong_password
+        wrong_credentials: wrong_password,
+        requires_username: config.requires_username()
     };
 
     Response::builder()
@@ -360,6 +362,25 @@ mod tests {
         }
 
         #[tokio::test]
+        async fn test_logging_missing_username(){
+            let config = ProxyConfig::from_values(
+                "localhost",
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+            ).unwrap();
+
+            let request = Request::builder()
+                .uri("/".parse::<Uri>().unwrap())
+                .method("POST")
+                .body(Body::from("password=password")).unwrap();
+
+            let resp = handle(request, Arc::new(config)).await;
+            assert_eq!(resp.status(), 200);
+            assert_eq!(resp.headers().get("Set-Cookie"), None);
+        }
+
+
+        #[tokio::test]
         async fn test_logging_in(){
             let mock_server = MockServer::start();
             let mock = Mock::new()
@@ -397,6 +418,26 @@ mod tests {
             let resp = handle(request, config.clone()).await;
             assert_eq!(resp.status(), 200);
             assert_eq!(mock.times_called(), 1);
+        }
+
+        #[tokio::test]
+        async fn test_logging_in_no_username(){
+            let config = ProxyConfig::from_values(
+                &format!("localhost"),
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
+                ":ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+            ).unwrap();
+
+            let request = Request::builder()
+                .uri("/".parse::<Uri>().unwrap())
+                .method("POST")
+                .body(Body::from("password=password")).unwrap();
+
+            let config = Arc::new(config);
+            let resp = handle(request, config.clone()).await;
+            assert_eq!(resp.status(), 303);
+            assert_eq!(resp.headers().get("Location").unwrap(), "/");
+            assert!(resp.headers().get("Set-Cookie").is_some());
         }
     }
 }

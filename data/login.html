@@ -9,11 +9,19 @@
 <body>
   <form method="POST" action="/">
     {{ if wrong_credentials }}
-    <div class="error">The username or password is incorrect</div>
+    <div class="error">
+      {{ if requires_username }}
+      The username or password is incorrect
+      {{ else }}
+      The password is incorrect
+      {{ endif  }}
+    </div>
+
     {{ endif }}
+    {{ if requires_username }}
     <label for="username">Username:</label>
     <input type="text" name="username" id="username" />
-
+    {{ endif }}
     <label for="password">Password:</label>
     <input type="password" name="password" id="password" />
 
