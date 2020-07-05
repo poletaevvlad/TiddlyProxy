@@ -12,6 +12,7 @@ mod proxy;
 mod config;
 use config::{parse_options, ProxyConfig};
 mod service;
+mod credentials;
 
 
 #[tokio::main]
