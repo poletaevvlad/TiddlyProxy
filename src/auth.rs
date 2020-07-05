@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
 use generic_array::GenericArray;
@@ -20,12 +21,12 @@ fn sign_token<'a, T: AuthConfig<'a>>(bytes: &[u8], config: &'a T) -> GenericArra
 
 
 #[derive(Serialize, Deserialize)]
-struct Token {
+pub struct Token {
     expiration: u64
 }
 
 #[derive(Debug, PartialEq)]
-enum VerificationError{
+pub enum VerificationError{
     FormatError,
     SignatureError,
     ExpirationError
@@ -89,14 +90,14 @@ impl Token {
 
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use hex_literal::hex;
     use super::sign_token;
     use super::AuthConfig;
     use super::Token;
     use super::VerificationError;
 
-    struct MockConfig {
+    pub struct MockConfig {
         secret: [u8; 32]
     }
 
