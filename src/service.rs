@@ -7,6 +7,8 @@ use crate::proxy::run_proxy;
 use crate::auth::{AuthConfig, Token};
 use std::time::SystemTime;
 use std::ops::Deref;
+use time::OffsetDateTime;
+
 
 fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a T) -> bool{
     match request.headers().get("Cookie").map(HeaderValue::to_str) {
@@ -35,7 +37,23 @@ fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a 
 pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Response<Body> {
     let authenticated = is_authenitcated(&request, config.deref());
     if authenticated {
-        run_proxy(request, config.remote_uri()).await
+        let path = request.uri().path();
+        if path == "/logout" || path == "/logout/" {
+            let clear_cookie = Cookie::build("proxy_auth", "")
+                .path("/")
+                .http_only(true)
+                .expires(OffsetDateTime::unix_epoch())
+                .finish();
+
+            Response::builder()
+                .status(StatusCode::TEMPORARY_REDIRECT)
+                .header("Location", "/")
+                .header("Set-Cookie", &clear_cookie.to_string())
+                .body(Body::empty())
+                .unwrap()
+        } else {
+            run_proxy(request, config.remote_uri()).await
+        }
     } else {
         if request.uri().path() == "/" {
             Response::builder().status(StatusCode::OK).body(Body::from("login")).unwrap()
@@ -195,6 +213,30 @@ mod tests {
                 .concat().await).unwrap();
             assert_eq!(body, "remote content");
             assert_eq!(mock.times_called(), 1);
+        }
+
+        #[tokio::test]
+        async fn test_logging_out(){
+            let config = ProxyConfig::from_values(
+                "localhost",
+                "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"
+            ).unwrap();
+            let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+            let token = Token::new(now + 100).generate(&config);
+
+            let request = Request::builder()
+                .uri("/logout".parse::<Uri>().unwrap())
+                .method("GET")
+                .header("Cookie", format!("proxy_auth={}", token))
+                .body(Body::empty()).unwrap();
+
+            let resp = handle(request, Arc::new(config)).await;
+            assert_eq!(resp.status(), 307);
+            assert_eq!(resp.headers().get("Location").unwrap(), "/");
+            assert_eq!(
+                resp.headers().get("Set-Cookie").unwrap(),
+                "proxy_auth=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+            );
         }
     }
 }
