@@ -7,6 +7,7 @@ use std::convert::Infallible;
 use hyper::{Body, Request};
 use futures::future::FutureExt;
 
+mod auth;
 mod proxy;
 mod config;
 use config::{parse_options, ProxyConfig};

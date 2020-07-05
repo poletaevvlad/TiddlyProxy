@@ -5,22 +5,16 @@ use generic_array::typenum::U32;
 use base64::{encode_config_buf, decode_config};
 
 
-struct AuthConfig {
-    secret: [u8; 32]
-}
-
-impl AuthConfig {
-    pub fn new(secret: [u8; 32]) -> AuthConfig {
-        AuthConfig{ secret: secret }
-    }
+trait AuthConfig<'a> {
+    fn secret(&'a self) -> &'a [u8; 32];
 }
 
 
-fn sign_token(bytes: &[u8], config: &AuthConfig) -> GenericArray<u8, U32> {
+fn sign_token<'a, T: AuthConfig<'a>>(bytes: &[u8], config: &'a T) -> GenericArray<u8, U32> {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hasher.update(b".");
-    hasher.update(&config.secret);
+    hasher.update(&config.secret());
     return hasher.finalize();
 }
 
@@ -42,7 +36,7 @@ impl Token {
         Token{ expiration: expiration }
     }
 
-    pub fn generate(&self, config: &AuthConfig) -> String {
+    pub fn generate<'a, T: AuthConfig<'a>>(&self, config: &'a T) -> String {
         let json = serde_json::to_string(self).unwrap().into_bytes();
         let signature = sign_token(&json, config);
         let config = base64::Config::new(base64::CharacterSet::Standard, false);
@@ -55,7 +49,7 @@ impl Token {
         result
     }
 
-    pub fn verify(value: &str, config: &AuthConfig, time: u64) ->
+    pub fn verify<'a, T: AuthConfig<'a>>(value: &str, config: &'a T, time: u64) ->
             Result<(), VerificationError> {
         let b64_config = base64::Config::new(base64::CharacterSet::Standard, false);
 
@@ -102,9 +96,25 @@ mod tests {
     use super::Token;
     use super::VerificationError;
 
+    struct MockConfig {
+        secret: [u8; 32]
+    }
+
+    impl MockConfig {
+        pub fn new(secret: [u8; 32]) -> MockConfig {
+            MockConfig{ secret: secret }
+        }
+    }
+
+    impl<'a> AuthConfig<'a> for MockConfig {
+        fn secret(&'a self) -> &'a [u8;32] {
+            &self.secret
+        }
+    }
+
     #[test]
     fn test_signing_tokens() {
-        let config = &AuthConfig::new(*b"01234567890123456789012345678901");
+        let config = &MockConfig::new(*b"01234567890123456789012345678901");
         let signature = sign_token(b"Hello, world", config);
         assert_eq!(
             signature[..],
@@ -114,7 +124,7 @@ mod tests {
 
     #[test]
     fn test_generating_token() {
-        let config = &AuthConfig::new(*b"01234567890123456789012345678901");
+        let config = &MockConfig::new(*b"01234567890123456789012345678901");
         let token = Token::new(10203040);
         assert_eq!(
             token.generate(config),
@@ -123,7 +133,7 @@ mod tests {
     }
 
     fn call_verify(token: &str, time: u64) -> Result<(), VerificationError> {
-        let config = &AuthConfig::new(*b"01234567890123456789012345678901");
+        let config = &MockConfig::new(*b"01234567890123456789012345678901");
         Token::verify(token, config, time)
     }
 
