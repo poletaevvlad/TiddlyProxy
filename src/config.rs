@@ -1,6 +1,42 @@
 use http::uri::Uri;
+use clap::{App, Arg, ArgMatches};
 
-fn parse_wiki_uri(uri: &str) -> Result<Uri, String> {
+
+pub fn parse_options<'a>() -> ArgMatches<'a>{
+    App::new("TiddlyWiki Authentication Proxy")
+        .arg(Arg::with_name("wiki_url")
+            .help("URL of a running TiddlyWiki node.js server")
+            .long("wiki_url")
+            .takes_value(true)
+            .required(true))
+        .get_matches()
+}
+
+
+#[derive(Debug)]
+pub struct ProxyConfig {
+    remote_uri: Uri
+}
+
+impl ProxyConfig {
+    pub fn from_args<'a>(matches: &ArgMatches<'a>) -> Result<ProxyConfig, (&'static str, String)>{
+        let remote_uri = match parse_wiki_uri(matches.value_of("wiki_url").unwrap()) {
+            Ok(uri) => uri,
+            Err(error) => return Err(("wiki_url", error))
+        };
+
+        Ok(ProxyConfig {
+            remote_uri: remote_uri
+        })
+    }
+
+    pub fn remote_uri(&self) -> &Uri {
+        &self.remote_uri
+    }
+}
+
+
+pub fn parse_wiki_uri(uri: &str) -> Result<Uri, String> {
     match uri.parse::<Uri>() {
         Ok(uri) => {
             let schema = uri.scheme_str();
