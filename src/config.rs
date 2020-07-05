@@ -200,9 +200,20 @@ fn parse_credentials(value: &str) -> Result<Vec<(Option<String>, UserCredentials
     Ok(result)
 }
 
+fn parse_port(value: &str) -> Result<u16, String> {
+    match value.parse::<u16>() {
+        Ok(0) => Err("Port number cannot be zero".to_string()),
+        Ok(value) => Ok(value),
+        Err(_) => Err("Invalid port number".to_string())
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
+    use super::parse_port;
+    use rstest::rstest;
+
     mod test_parsing_uri {
         use super::super::parse_wiki_uri;
 
@@ -375,5 +386,16 @@ mod tests {
             assert!(config.can_login(Some("user1"), "password"));
             assert!(config.can_login(Some("user2"), "another"));
         }
+    }
+
+    #[rstest(value, expected,
+        case("8080", Ok(8080)),
+        case("0", Err("Port number cannot be zero".to_string())),
+        case("70000", Err("Invalid port number".to_string())),
+        case("-400", Err("Invalid port number".to_string())),
+        case("123ab", Err("Invalid port number".to_string()))
+    )]
+    fn test_parse_port_number(value: &str, expected: Result<u16, String>){
+        assert_eq!(parse_port(value), expected);
     }
 }
