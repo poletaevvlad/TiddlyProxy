@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use http::uri::Uri;
 use std::collections::HashMap;
 use clap::{App, Arg, ArgMatches};
@@ -89,6 +90,23 @@ impl CredentialsStore for ProxyConfig {
         self.users.get(&name.map(String::from))
     }
 }
+
+pub struct ArcAuthProxyConfig{
+    obj: Arc<ProxyConfig>
+}
+
+impl ArcAuthProxyConfig{
+    pub fn new(obj: Arc<ProxyConfig>) -> ArcAuthProxyConfig {
+        ArcAuthProxyConfig{ obj: obj }
+    }
+}
+
+impl<'a> AuthConfig<'a> for ArcAuthProxyConfig {
+    fn secret(&'a self) -> &'a [u8; 32] {
+        self.obj.secret()
+    }
+}
+
 
 
 pub fn parse_wiki_uri(uri: &str) -> Result<Uri, String> {

@@ -3,13 +3,15 @@ use serde::{Serialize};
 use hyper::{Request, Response, Body, StatusCode};
 use hyper::header::HeaderValue;
 use cookie::Cookie;
-use crate::config::ProxyConfig;
+use crate::config::{ProxyConfig, ArcAuthProxyConfig};
 use crate::proxy::run_proxy;
 use crate::auth::{AuthConfig, Token};
-use std::time::SystemTime;
+use crate::credentials::CredentialsStore;
+use std::time::{SystemTime, Duration};
 use std::ops::Deref;
 use time::OffsetDateTime;
 use tinytemplate::TinyTemplate;
+use futures::stream::TryStreamExt;
 
 
 fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a T) -> bool{
@@ -58,7 +60,7 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
         }
     } else {
         match request.uri().path() {
-            "/" => run_login_page(request, config),
+            "/" => run_login_page(request, config).await,
             "/proxy:styles.css" => {
                 Response::builder()
                     .status(StatusCode::OK)
@@ -83,8 +85,72 @@ struct LoginFormContext {
 
 }
 
+fn extract_form_fields(body: &[u8]) -> (Option<String>, Option<String>) {
+    let mut username: Option<String> = None;
+    let mut password: Option<String> = None;
 
-fn run_login_page(_request: Request<Body>, _config: Arc<ProxyConfig>) -> Response<Body> {
+    for (key, value) in url::form_urlencoded::parse(body).into_owned() {
+        match &key[..] {
+            "username" => username = Some(value),
+            "password" => password = Some(value),
+            _ => continue
+        }
+        if username != None && password != None {
+            break;
+        }
+    }
+    (username, password)
+}
+
+async fn read_body(mut body: hyper::Body) -> Vec<u8> {
+    let mut data = Vec::new();
+    loop {
+        match body.try_next().await {
+            Ok(Some(chunk)) => data.extend_from_slice(&chunk),
+            Ok(None) => return data,
+            Err(_) => return vec![]
+        }
+    }
+}
+
+async fn run_login_page(request: Request<Body>, config: Arc<ProxyConfig>) -> Response<Body> {
+    let _wrong_password = if request.method() == "POST" {
+        let body = read_body(request.into_body()).await;
+        let fields = extract_form_fields(&body);
+        match fields{
+            (None, None) => false,
+            (_, None) => true,
+            (username, Some(password)) => {
+                let can_login = match username {
+                    Some(username) => config.can_login(Some(&username), &password),
+                    None => config.can_login(None, &password)
+                };
+                if can_login {
+                    let expires = SystemTime::now() + Duration::new(24 * 60 * 60, 0);
+                    let token = Token::new(expires.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs());
+
+                    let arc_config = token.generate(&ArcAuthProxyConfig::new(config.clone()));
+                    let auth_cookie = Cookie::build("proxy_auth", &arc_config)
+                        .path("/")
+                        .http_only(true)
+                        .expires(OffsetDateTime::from(expires))
+                        .finish();
+
+                    return Response::builder()
+                        .status(StatusCode::SEE_OTHER)
+                        .header("Location", "/")
+                        .header("Set-Cookie", &auth_cookie.to_string())
+                        .body(Body::empty())
+                        .unwrap()
+                } else {
+                    true
+                }
+            }
+        }
+    } else {
+        false
+    };
+
     let mut template = TinyTemplate::new();
     template.add_template("login", include_str!("../data/login.html")).unwrap();
 
