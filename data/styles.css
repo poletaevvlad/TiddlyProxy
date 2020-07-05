@@ -37,3 +37,12 @@ input[type=submit]{
   width: 100%;
   padding: 4px 0;
 }
+
+.error{
+  font-size: 12px;
+  margin-bottom: 24px;
+  color: #a61f1f;
+  background-color: #ead9d9;
+  padding: 4px 8px;
+  border-left: 2px solid;
+}

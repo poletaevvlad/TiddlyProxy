@@ -82,7 +82,7 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
 
 #[derive(Serialize)]
 struct LoginFormContext {
-
+    wrong_credentials: bool
 }
 
 fn extract_form_fields(body: &[u8]) -> (Option<String>, Option<String>) {
@@ -114,7 +114,7 @@ async fn read_body(mut body: hyper::Body) -> Vec<u8> {
 }
 
 async fn run_login_page(request: Request<Body>, config: Arc<ProxyConfig>) -> Response<Body> {
-    let _wrong_password = if request.method() == "POST" {
+    let wrong_password = if request.method() == "POST" {
         let body = read_body(request.into_body()).await;
         let fields = extract_form_fields(&body);
         match fields{
@@ -155,6 +155,7 @@ async fn run_login_page(request: Request<Body>, config: Arc<ProxyConfig>) -> Res
     template.add_template("login", include_str!("../data/login.html")).unwrap();
 
     let context = LoginFormContext{
+        wrong_credentials: wrong_password
     };
 
     Response::builder()
