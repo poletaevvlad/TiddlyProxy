@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
 use generic_array::GenericArray;
