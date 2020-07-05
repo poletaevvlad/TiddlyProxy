@@ -1,8 +1,10 @@
 use http::uri::Uri;
+use std::collections::HashMap;
 use clap::{App, Arg, ArgMatches};
 use generic_array::{GenericArray, ArrayLength};
 use generic_array::typenum::U32;
 use crate::auth::AuthConfig;
+use crate::credentials::{UserCredentials, CredentialsStore};
 
 
 pub fn parse_options<'a>() -> ArgMatches<'a>{
@@ -24,7 +26,8 @@ pub fn parse_options<'a>() -> ArgMatches<'a>{
 #[derive(Debug)]
 pub struct ProxyConfig {
     remote_uri: Uri,
-    secret: GenericArray<u8, U32>
+    secret: GenericArray<u8, U32>,
+    users: HashMap<Option<String>, UserCredentials>
 }
 
 impl ProxyConfig {
@@ -41,7 +44,8 @@ impl ProxyConfig {
 
         Ok(ProxyConfig{
             remote_uri: remote_uri,
-            secret: secret
+            secret: secret,
+            users: HashMap::new()
         })
     }
 
@@ -60,6 +64,12 @@ impl ProxyConfig {
 impl<'a> AuthConfig<'a> for ProxyConfig {
     fn secret(&'a self) -> &'a [u8;32] {
         self.secret.as_ref()
+    }
+}
+
+impl CredentialsStore for ProxyConfig {
+    fn credentials_for<'a>(&'a self, name: Option<&str>) -> Option<&'a UserCredentials>{
+        self.users.get(&name.map(String::from))
     }
 }
 
@@ -107,6 +117,49 @@ fn parse_hex_string<N: ArrayLength<u8>>(value: &str) -> Result<GenericArray<u8, 
         match c.to_digit(16) {
             Some(digit) => result[i / 2] = result[i / 2] << 4 | (digit as u8),
             None =>  return Err(format!("Invalid character at position {}", i + 1))
+        }
+    }
+    Ok(result)
+}
+
+fn parse_credentials_part(value: &str) -> Result<(Option<String>, UserCredentials), String> {
+    // Format: [<username>]:<salt>:<password>
+    let components: Vec<&str> = value.trim().split(":").collect();
+    if components.len() != 3 {
+        return Err("Wrong number of components".to_string())
+    }
+
+    let username = if components[0].len() > 0 {
+        Some(components[0])
+    } else {
+        None
+    };
+
+    let salt = components[1];
+    if salt.len() < 5 {
+        return Err("The value for salt is too short".to_string());
+    }
+
+    let password_hash = match parse_hex_string::<U32>(components[2]) {
+        Ok(buffer) => buffer.into(),
+        Err(message) => return Err(format!("Password hash is not valid ({})", message))
+    };
+
+    Ok((username.map(String::from), UserCredentials::new(salt.to_string(), password_hash)))
+}
+
+fn parse_credentials(value: &str) -> Result<Vec<(Option<String>, UserCredentials)>, String> {
+    let mut result = Vec::<(Option<String>, UserCredentials)>::new();
+    let parts: Vec<&str> = value.split(';').collect();
+    for part in parts.iter() {
+        match parse_credentials_part(part) {
+            Ok((username, credentials)) => {
+                if username == None && parts.len() > 1 {
+                    return Err("User without a username must be the only user".to_string());
+                }
+                result.push((username, credentials))
+            },
+            Err(error) => return Err(error)
         }
     }
     Ok(result)
@@ -207,6 +260,71 @@ mod tests {
                 Ok(result) => assert_eq!(result[..], hex!("0123456789abcdef0123")),
                 Err(_) => assert!(false)
             }
+        }
+    }
+
+    mod test_parsing_credentials {
+        use rstest::rstest;
+        use hex_literal::hex;
+        use crate::credentials::UserCredentials;
+        use super::super::parse_credentials;
+
+        #[rstest(input, error,
+            case ("user:password", "Wrong number of components"),
+            case (
+                "user:s:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+                "The value for salt is too short"
+            ),
+            case (
+                "user:ABCDEF:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885",
+                "Password hash is not valid (String is too short, 64 hex digits expected)"
+            ),
+            case (
+                ":ABCDEF:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b; \
+                user:FEDCBA:f64671af1dd46e4a00a48a2c7c6a3658d107507391b6eb0d9111b2b3d326512b",
+                "User without a username must be the only user"
+            )
+        )]
+        fn test_invalid_credentials(input: &str, error: &str) {
+            assert_eq!(parse_credentials(input).unwrap_err(), error)
+        }
+
+        #[rstest(input, expected,
+            case (
+                "user:ABCDEF:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+                vec![
+                    (Some("user".to_string()), UserCredentials::new(
+                        "ABCDEF".to_string(),
+                        hex!("291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+                    )))
+                ]
+            ),
+            case (
+                ":ABCDEF:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+                vec![
+                    (None, UserCredentials::new(
+                        "ABCDEF".to_string(),
+                        hex!("291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+                    )))
+                ]
+            ),
+            case (
+                "user1:ABCDEF:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b; \
+                 user2:FEDCBA:aa3a9608d21b2facdd897c37fc2e34f7c0f569c9bf6cfe4e5e413fb6310d0fc8",
+                vec![
+                    (Some("user1".to_string()), UserCredentials::new(
+                        "ABCDEF".to_string(),
+                        hex!("291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+                    ))),
+                    (Some("user2".to_string()), UserCredentials::new(
+                        "FEDCBA".to_string(),
+                        hex!("aa3a9608d21b2facdd897c37fc2e34f7c0f569c9bf6cfe4e5e413fb6310d0fc8"
+                    ))),
+                ]
+            ),
+        )]
+        fn test_valid_credentials(input: &str, expected: Vec<(Option<String>, UserCredentials)>){
+            assert_eq!(parse_credentials(input).unwrap(), expected)
         }
     }
 }

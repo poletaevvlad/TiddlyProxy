@@ -1,5 +1,6 @@
 use sha2::{Sha256, Digest};
 
+#[derive(Debug, PartialEq)]
 pub struct UserCredentials{
     salt: String,
     password_hash: [u8;32]
@@ -15,7 +16,7 @@ impl UserCredentials {
 }
 
 pub trait CredentialsStore{
-    fn credentials_for(&self, name: Option<&str>) -> Option<UserCredentials>;
+    fn credentials_for<'a>(&'a self, name: Option<&str>) -> Option<&'a UserCredentials>;
 
     fn can_login(&self, name: Option<&str>, password: &str) -> bool{
         let credentials = match self.credentials_for(name) {
@@ -24,7 +25,7 @@ pub trait CredentialsStore{
         };
 
         let mut hasher = Sha256::new();
-        hasher.update(credentials.salt);
+        hasher.update(&credentials.salt);
         hasher.update(b":");
         hasher.update(password);
         let hash = hasher.finalize();
@@ -43,7 +44,7 @@ mod tests {
     struct NoUserStore;
 
     impl CredentialsStore for NoUserStore {
-        fn credentials_for(&self, _name: Option<&str>) -> Option<UserCredentials> {
+        fn credentials_for<'a>(&'a self, _name: Option<&str>) -> Option<&'a UserCredentials> {
             None
         }
     }
@@ -54,26 +55,35 @@ mod tests {
         assert!(! store.can_login(Some("user"), "password"));
     }
 
-    struct AllUsersStore;
+    struct AllUsersStore{
+        credential: UserCredentials
+    }
 
     impl CredentialsStore for AllUsersStore {
-        fn credentials_for(&self, _name: Option<&str>) -> Option<UserCredentials> {
-            Some(UserCredentials::new(
-                "salt".to_string(),
-                hex!("291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b")
-            ))
+        fn credentials_for<'a>(&'a self, _name: Option<&str>) -> Option<&'a UserCredentials> {
+            Some(&self.credential)
         }
     }
 
     #[test]
     fn test_wrong_password() {
-        let store = AllUsersStore{};
+        let store = AllUsersStore{
+            credential:UserCredentials::new(
+                "salt".to_string(),
+                hex!("291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b")
+            )
+        };
         assert!(! store.can_login(Some("user"), "wrong"));
     }
 
     #[test]
     fn test_successful() {
-        let store = AllUsersStore{};
+        let store = AllUsersStore{
+            credential:UserCredentials::new(
+                "salt".to_string(),
+                hex!("291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b")
+            )
+        };
         assert!(store.can_login(Some("user"), "password"));
     }
 
