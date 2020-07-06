@@ -2,6 +2,8 @@
 
 *A reverse proxy that limits access to TiddlyWiki for unauthenticated users.*
 
+![Testing](https://github.com/poletaevvlad/TiddlyProxy/workflows/Testing/badge.svg)
+
 TiddlyWiki node.js server supports HTTP-based authentication. This approach has
 several disadvantages: username and password entry may be inconvenient on some
 user agents, and the browser may close the session before it is desirable.
