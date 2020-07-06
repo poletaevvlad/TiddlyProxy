@@ -1,3 +1,5 @@
+use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use std::str::FromStr;
 use std::sync::Arc;
 use http::uri::Uri;
 use std::collections::HashMap;
@@ -25,6 +27,14 @@ pub fn parse_options<'a>() -> ArgMatches<'a>{
             .long("users")
             .takes_value(true)
             .required(true))
+        .arg(Arg::with_name("host")
+            .help("An IP-address of a server")
+            .long("host")
+            .takes_value(true))
+        .arg(Arg::with_name("port")
+            .help("Port to be used by the server")
+            .long("port")
+            .takes_value(true))
         .get_matches()
 }
 
@@ -33,11 +43,15 @@ pub fn parse_options<'a>() -> ArgMatches<'a>{
 pub struct ProxyConfig {
     remote_uri: Uri,
     secret: GenericArray<u8, U32>,
-    users: HashMap<Option<String>, UserCredentials>
+    users: HashMap<Option<String>, UserCredentials>,
+    socker_addr: SocketAddr
 }
 
 impl ProxyConfig {
-    pub fn from_values(wiki_url: &str, secret: &str, users: &str) -> Result<ProxyConfig, (&'static str, String)> {
+    pub fn from_values(
+        wiki_url: &str, secret: &str, users: &str,
+        host: Option<&str>, port: Option<&str>
+    ) -> Result<ProxyConfig, (&'static str, String)> {
         let remote_uri = match parse_wiki_uri(wiki_url) {
             Ok(uri) => uri,
             Err(error) => return Err(("wiki_url", error))
@@ -59,10 +73,23 @@ impl ProxyConfig {
             Err(error) => return Err(("users", error))
         };
 
+        let port = match port.map(parse_port) {
+            Some(Ok(port)) => port,
+            Some(Err(error)) => return Err(("port", error)),
+            None => 3000
+        };
+
+        let host = match host.map(parse_host) {
+            Some(Ok(addr)) => addr,
+            Some(Err(error)) => return Err(("host", error)),
+            None => IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
+        };
+
         Ok(ProxyConfig{
             remote_uri: remote_uri,
             secret: secret,
-            users: users
+            users: users,
+            socker_addr: SocketAddr::new(host, port)
         })
     }
 
@@ -70,12 +97,18 @@ impl ProxyConfig {
         ProxyConfig::from_values(
             matches.value_of("wiki_url").unwrap(),
             matches.value_of("secret").unwrap(),
-            matches.value_of("users").unwrap()
+            matches.value_of("users").unwrap(),
+            matches.value_of("host"),
+            matches.value_of("port")
         )
     }
 
     pub fn remote_uri(&self) -> &Uri {
         &self.remote_uri
+    }
+
+    pub fn socket_addr(&self) -> &SocketAddr {
+        &self.socker_addr
     }
 }
 
@@ -206,6 +239,10 @@ fn parse_port(value: &str) -> Result<u16, String> {
         Ok(value) => Ok(value),
         Err(_) => Err("Invalid port number".to_string())
     }
+}
+
+fn parse_host(value: &str) -> Result<IpAddr, String> {
+    IpAddr::from_str(value).map_err(|_| String::from("Invalid value for an IP-address"))
 }
 
 
@@ -380,7 +417,8 @@ mod tests {
                 "localhost",
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
                 "user1:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8; \
-                 user2:FEDCBA:61aa1f3ae8e8cfafe089ed0c0c115f316e126c27032ef171e89329cb5de67145"
+                 user2:FEDCBA:61aa1f3ae8e8cfafe089ed0c0c115f316e126c27032ef171e89329cb5de67145",
+                 None, None
             ).unwrap();
             assert_eq!(config.credentials_for(None), None);
             assert!(config.can_login(Some("user1"), "password"));

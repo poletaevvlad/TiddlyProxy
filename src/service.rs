@@ -266,7 +266,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 &format!("{}", mock_server.address()),
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+                None, None
             ).unwrap();
 
             let mock = Mock::new()
@@ -291,7 +292,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 &format!("{}", mock_server.address()),
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+                None, None
             ).unwrap();
 
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
@@ -323,7 +325,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 "localhost",
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+                "user:abcdef:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+                None, None
             ).unwrap();
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
             let token = Token::new(now + 100).generate(&config);
@@ -348,7 +351,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 "localhost",
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8",
+                None, None
             ).unwrap();
 
             let request = Request::builder()
@@ -366,7 +370,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 "localhost",
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8",
+                None, None
             ).unwrap();
 
             let request = Request::builder()
@@ -392,7 +397,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 &format!("{}", mock_server.address()),
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+                "user:ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8",
+                None, None
             ).unwrap();
 
             let request = Request::builder()
@@ -425,7 +431,8 @@ mod tests {
             let config = ProxyConfig::from_values(
                 &format!("localhost"),
                 "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF",
-                ":ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8"
+                ":ABCDEF:5ebb11dc077b1ecbf1a226571fecfe15ce48924de7c12c9b478bac660dd816b8",
+                None, None
             ).unwrap();
 
             let request = Request::builder()

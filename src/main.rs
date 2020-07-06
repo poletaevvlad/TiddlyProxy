@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use hyper::{Server};
 use hyper::service::{service_fn, make_service_fn};
-use std::net::SocketAddr;
 use hyper::server::conn::AddrStream;
 use std::convert::Infallible;
 use hyper::{Body, Request};
@@ -25,9 +24,9 @@ async fn main() {
             return
         }
     };
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     let config_arc = Arc::new(config);
+    let config_copy = config_arc.clone();
 
     let listener_service = move |_socket: &AddrStream| {
         let config_arc = Arc::clone(&config_arc);
@@ -39,7 +38,8 @@ async fn main() {
         }
     };
 
-    let server = Server::bind(&addr).serve(make_service_fn(listener_service));
+    let server = Server::bind(&config_copy.socket_addr())
+        .serve(make_service_fn(listener_service));
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
     }
