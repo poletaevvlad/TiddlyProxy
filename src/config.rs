@@ -111,7 +111,17 @@ impl<'a> AuthConfig<'a> for ArcAuthProxyConfig {
     }
 }
 
-
+pub fn parse_username(value: &str) -> Result<String, &'static str> {
+    let value = value.trim();
+    for ch in value.chars() {
+        if ch.is_whitespace() {
+            return Err("A username cannot contain spaces")
+        } else if ch == ':' {
+            return Err("A username cannot contain colons")
+        }
+    }
+    Ok(String::from(value))
+}
 
 pub fn parse_wiki_uri(uri: &str) -> Result<Uri, String> {
     match uri.parse::<Uri>() {
@@ -140,7 +150,6 @@ pub fn parse_wiki_uri(uri: &str) -> Result<Uri, String> {
         Err(_) => Err(format!("Cannot parse url: {}", uri))
     }
 }
-
 
 fn parse_hex_string<N: ArrayLength<u8>>(value: &str) -> Result<GenericArray<u8, N>, String> {
     let mut result = GenericArray::<u8, N>::default();
@@ -221,6 +230,25 @@ fn parse_host(value: &str) -> Result<IpAddr, String> {
 mod tests {
     use super::parse_port;
     use rstest::rstest;
+
+    mod test_prasing_username {
+        use super::super::parse_username;
+
+        #[test]
+        fn test_valid_username() {
+            assert_eq!(parse_username("  username "), Ok(String::from("username")));
+        }
+
+        #[test]
+        fn test_username_with_spacens() {
+            assert_eq!(parse_username("us er"), Err("A username cannot contain spaces"));
+        }
+
+        #[test]
+        fn test_username_with_colons(){
+            assert_eq!(parse_username("us:er"), Err("A username cannot contain colons"));
+        }
+    }
 
     mod test_parsing_uri {
         use super::super::parse_wiki_uri;
