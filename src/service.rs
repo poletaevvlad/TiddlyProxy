@@ -122,13 +122,19 @@ async fn run_login_page(request: Request<Body>, config: Arc<ProxyConfig>) -> Res
             (None, None) => false,
             (_, None) => true,
             (username, Some(password)) => {
-                let can_login = match username {
-                    Some(username) => config.can_login(Some(&username), &password),
-                    None => config.can_login(None, &password)
+                let (can_login, username) = match username {
+                    Some(username) => (
+                        config.can_login(Some(&username), &password),
+                        String::from(username)
+                    ),
+                    None => (config.can_login(None, &password), String::new())
                 };
                 if can_login {
                     let expires = SystemTime::now() + Duration::new(24 * 60 * 60, 0);
-                    let token = Token::new(expires.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs());
+                    let token = Token::new(
+                        expires.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
+                        username
+                    );
 
                     let arc_config = token.generate(&ArcAuthProxyConfig::new(config.clone()));
                     let auth_cookie = Cookie::build("proxy_auth", &arc_config)
@@ -225,7 +231,7 @@ mod tests {
             let request = Request::builder()
                 .header("Cookie", format!(
                     "cookie1=2; proxy_auth={}; cookie2=3",
-                    Token::new(now - 100).generate(&config)
+                    Token::new(now - 100, String::from("user")).generate(&config)
                 ))
                 .body(())
                 .unwrap();
@@ -240,7 +246,7 @@ mod tests {
             let request = Request::builder()
                 .header("Cookie", format!(
                     "cookie1=2; proxy_auth={}; cookie2=3",
-                    Token::new(now + 100).generate(&config)
+                    Token::new(now + 100, String::from("user")).generate(&config)
                 ))
                 .body(())
                 .unwrap();
@@ -297,7 +303,7 @@ mod tests {
             ).unwrap();
 
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-            let token = Token::new(now + 100).generate(&config);
+            let token = Token::new(now + 100, String::from("user")).generate(&config);
 
             let mock = Mock::new()
                 .expect_method(httpmock::Method::GET)
@@ -329,7 +335,7 @@ mod tests {
                 None, None
             ).unwrap();
             let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-            let token = Token::new(now + 100).generate(&config);
+            let token = Token::new(now + 100, String::from("user")).generate(&config);
 
             let request = Request::builder()
                 .uri("/logout".parse::<Uri>().unwrap())

@@ -21,7 +21,8 @@ fn sign_token<'a, T: AuthConfig<'a>>(bytes: &[u8], config: &'a T) -> GenericArra
 
 #[derive(Serialize, Deserialize)]
 pub struct Token {
-    expiration: u64
+    expiration: u64,
+    username: String
 }
 
 #[derive(Debug, PartialEq)]
@@ -32,8 +33,11 @@ pub enum VerificationError{
 }
 
 impl Token {
-    pub fn new(expiration: u64) -> Token {
-        Token{ expiration: expiration }
+    pub fn new(expiration: u64, username: String) -> Token {
+        Token{
+            expiration: expiration,
+            username: username
+        }
     }
 
     pub fn generate<'a, T: AuthConfig<'a>>(&self, config: &'a T) -> String {
@@ -125,10 +129,10 @@ pub mod tests {
     #[test]
     fn test_generating_token() {
         let config = &MockConfig::new(*b"01234567890123456789012345678901");
-        let token = Token::new(10203040);
+        let token = Token::new(10203040, String::from("user"));
         assert_eq!(
             token.generate(config),
-            "eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg"[..]
+            "eyJleHBpcmF0aW9uIjoxMDIwMzA0MCwidXNlcm5hbWUiOiJ1c2VyIn0.DhTHOlqNCFcje31bF9R6CWjvXDWKbIye4ON7ipTrVyw"[..]
         );
     }
 
@@ -180,7 +184,7 @@ pub mod tests {
     #[test]
     fn test_token_expired() {
         assert_eq!(
-            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg", 10203060),
+            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MCwidXNlcm5hbWUiOiJ1c2VyIn0.DhTHOlqNCFcje31bF9R6CWjvXDWKbIye4ON7ipTrVyw", 10203060),
             Err(VerificationError::ExpirationError)
         );
     }
@@ -188,7 +192,7 @@ pub mod tests {
     #[test]
     fn test_valid_token() {
         assert_eq!(
-            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MH0.Z8NCgEZkfzFGgAGZa0PbzcKZiZ3tu1jZzVz1ARZd0Eg", 10203030),
+            call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MCwidXNlcm5hbWUiOiJ1c2VyIn0.DhTHOlqNCFcje31bF9R6CWjvXDWKbIye4ON7ipTrVyw", 10203030),
             Ok(())
         );
     }
