@@ -1,6 +1,8 @@
 name: TiddlyWiki Authentication Proxy
 settings:
   - SubcommandRequiredElseHelp
+  - ColorAuto
+  - ColoredHelp
 
 subcommands:
   - run:
