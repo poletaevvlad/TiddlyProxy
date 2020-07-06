@@ -1,4 +1,4 @@
-# TiddlyWiki Authentication Proxy
+# TiddlyProxy: *TiddlyWiki Authentication Proxy*
 
 *A reverse proxy that limits access to TiddlyWiki for unauthenticated users.*
 
@@ -11,7 +11,7 @@ concerns.
 
 TiddlyWiki supports user authentication via an external proxy. Such proxy
 intercepts unauthorized requests to the server and requires the user to enter
-their credentials. `tiddlyproxy` is such proxy written in Rust.
+their credentials. TiddlyProxy is such proxy written in Rust.
 
 ## Installation
 
@@ -22,12 +22,12 @@ Please refer to the [installation guide on the Rust Programming Language website
 
 ## Usage
 
-Before starting `tiddlyproxy` ensure that TiddlyWiki node.js server (or any
+Before starting TiddlyProxy ensure that TiddlyWiki node.js server (or any
 other server that supports the Web Server API) is up and running, is accessible
-from the machine where you are about to start `tiddlyproxy`, and basic
+from the machine where you are about to start TiddlyProxy, and basic
 authentication is disabled.
 
-`tiddlyproxy` command-line utility supports several subcommands. The most
+TiddlyProxy command-line utility supports several subcommands. The most
 important one is `run`. To run the server issue the command with the following
 syntax:
 
@@ -59,7 +59,7 @@ The value must follow one of the following formats:
 
 ### `--users <users' credentials>`
 
-`tiddlyproxy` supports authentication by multiple users. Each user's
+TiddlyProxy supports authentication by multiple users. Each user's
 credentials are encoded in a string with the following format:
 
 ```
