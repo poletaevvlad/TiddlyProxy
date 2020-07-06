@@ -94,7 +94,7 @@ server will run.
 TiddleProxy comes with a plugin that adds a logout button above the toolbar.
 To install it, go to
 [$:/plugins/poletaevvlad/proxy-logout](https://poletaevvlad.github.io/TiddlyProxy/#%24%3A%2Fplugins%2Fpoletaevvlad%2Fproxy-logout)
-and drag the lint into the window containing your wiki. See
+and drag the link into the window containing your wiki. See
 [details](https://tiddlywiki.com/static/Manually%2520installing%2520a%2520plugin.html)
 on manually installing plugins.
 
