@@ -1,0 +1,18 @@
+{
+    "description": "Build target",
+    "plugins": [
+        "tiddlywiki/tiddlyweb",
+        "poletaevvlad/proxy-logout"
+    ],
+    "themes": [
+        "tiddlywiki/vanilla"
+    ],
+    "build": {
+        "index": [
+            "--rendertiddler",
+            "$:/plugins/tiddlywiki/tiddlyweb/save/offline",
+            "index.html",
+            "text/plain"
+        ]
+    }
+}
