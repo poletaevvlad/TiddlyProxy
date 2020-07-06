@@ -7,6 +7,7 @@ use hyper::{Body, Request};
 use futures::future::FutureExt;
 use clap::{App, load_yaml, ArgMatches};
 use rand::prelude::*;
+use rand::distributions::{Alphanumeric};
 use rand_chacha::ChaCha20Rng;
 
 mod auth;
@@ -57,6 +58,36 @@ fn generate_secret(){
     println!("");
 }
 
+fn create_user_credential<'a>(matches: &'a ArgMatches<'a>) {
+    let username = match matches.value_of("username").map(config::parse_username) {
+        None => String::new(),
+        Some(Ok(username)) => username,
+        Some(Err(error)) => {
+            eprintln!("Invalid value for --user: {}", error);
+            return
+        }
+    };
+
+    let password = match rpassword::prompt_password_stderr("Password: ") {
+        Ok(password) => password,
+        Err(_) => {
+            eprintln!("Cannot read password");
+            return
+        }
+    };
+
+    let rng = ChaCha20Rng::from_entropy();
+    let salt: String = rng.sample_iter(Alphanumeric).take(7).collect();
+
+    let mut hash = String::with_capacity(64);
+    for byte in credentials::generate_hash(&salt, &password) {
+        hash.push_str(&format!("{:02X}", byte));
+    }
+
+    println!("{}:{}:{}", username, salt, hash);
+
+}
+
 #[tokio::main]
 async fn main() {
     let args_config = load_yaml!("../data/arguments.yml");
@@ -65,6 +96,7 @@ async fn main() {
     match options.subcommand() {
         ("run", Some(matches)) => run_reverse_proxy(matches).await,
         ("gensecret", _) => generate_secret(),
+        ("mkuser", Some(matches)) => create_user_credential(matches),
         _ => {}
     }
 }

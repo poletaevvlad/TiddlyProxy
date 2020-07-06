@@ -29,5 +29,15 @@ subcommands:
             help: Port to be used by the server
             long: port
             takes_value: true
+
   - gensecret:
       about: Generates a random secret string
+
+  - mkuser:
+      about: Creates the credentials string for a users
+      args:
+        - username:
+            help: Username
+            long: user
+            takes_value: true
+

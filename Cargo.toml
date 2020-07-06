@@ -24,6 +24,7 @@ tinytemplate = "1.1.0"
 url = "2.1.1"
 rand = "0.7.3"
 rand_chacha = "0.2.2"
+rpassword = "4.0"
 
 [dev-dependencies]
 hex-literal = "0.2.1"

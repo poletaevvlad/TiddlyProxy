@@ -1,4 +1,6 @@
 use sha2::{Sha256, Digest};
+use generic_array::{GenericArray};
+use generic_array::typenum::U32;
 
 #[derive(Debug, PartialEq)]
 pub struct UserCredentials{
@@ -15,6 +17,14 @@ impl UserCredentials {
     }
 }
 
+pub fn generate_hash(salt: &str, password: &str) -> GenericArray<u8, U32>{
+    let mut hasher = Sha256::new();
+    hasher.update(salt);
+    hasher.update(b":");
+    hasher.update(password);
+    hasher.finalize()
+}
+
 pub trait CredentialsStore{
     fn credentials_for<'a>(&'a self, name: Option<&str>) -> Option<&'a UserCredentials>;
 
@@ -24,11 +34,7 @@ pub trait CredentialsStore{
             None => return false
         };
 
-        let mut hasher = Sha256::new();
-        hasher.update(&credentials.salt);
-        hasher.update(b":");
-        hasher.update(password);
-        let hash = hasher.finalize();
+        let hash = generate_hash(&credentials.salt, password);
         credentials.password_hash[..] == hash[..]
     }
 
