@@ -5,7 +5,7 @@ use hyper::server::conn::AddrStream;
 use std::convert::Infallible;
 use hyper::{Body, Request};
 use futures::future::FutureExt;
-use clap::{App, load_yaml};
+use clap::{App, load_yaml, ArgMatches};
 
 mod auth;
 mod proxy;
@@ -15,12 +15,8 @@ mod service;
 mod credentials;
 
 
-#[tokio::main]
-async fn main() {
-    let args_config = load_yaml!("../data/arguments.yml");
-    let options = App::from(args_config).get_matches();
-
-    let config = match ProxyConfig::from_args(&options) {
+async fn run_reverse_proxy<'a>(matches: &'a ArgMatches<'a>) {
+    let config = match ProxyConfig::from_args(matches) {
         Ok(uri) => uri,
         Err((option, error)) => {
             eprintln!("Invalid value for --{}: {}", option, error);
@@ -45,5 +41,17 @@ async fn main() {
         .serve(make_service_fn(listener_service));
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
+    }
+}
+
+
+#[tokio::main]
+async fn main() {
+    let args_config = load_yaml!("../data/arguments.yml");
+    let options = App::from(args_config).get_matches();
+
+    match options.subcommand() {
+        ("run", Some(matches)) => run_reverse_proxy(matches).await,
+        _ => {}
     }
 }
