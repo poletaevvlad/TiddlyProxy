@@ -5,7 +5,7 @@ use hyper::server::conn::AddrStream;
 use std::convert::Infallible;
 use hyper::{Body, Request};
 use futures::future::FutureExt;
-use clap::{App, load_yaml, ArgMatches};
+use clap::{App, load_yaml, ArgMatches, crate_authors, crate_version};
 use rand::prelude::*;
 use rand::distributions::{Alphanumeric};
 use rand_chacha::ChaCha20Rng;
@@ -91,7 +91,10 @@ fn create_user_credential<'a>(matches: &'a ArgMatches<'a>) {
 #[tokio::main]
 async fn main() {
     let args_config = load_yaml!("../data/arguments.yml");
-    let options = App::from(args_config).get_matches();
+    let options = App::from(args_config)
+        .version(crate_version!())
+        .author(crate_authors!())
+        .get_matches();
 
     match options.subcommand() {
         ("run", Some(matches)) => run_reverse_proxy(matches).await,

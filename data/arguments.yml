@@ -3,6 +3,7 @@ settings:
   - SubcommandRequiredElseHelp
   - ColorAuto
   - ColoredHelp
+after_help: See details at https://github.com/poletaevvlad/tiddlywiki-proxy
 
 subcommands:
   - run:
