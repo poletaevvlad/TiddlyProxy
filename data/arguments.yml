@@ -29,3 +29,5 @@ subcommands:
             help: Port to be used by the server
             long: port
             takes_value: true
+  - gensecret:
+      about: Generates a random secret string

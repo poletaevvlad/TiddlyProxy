@@ -6,6 +6,8 @@ use std::convert::Infallible;
 use hyper::{Body, Request};
 use futures::future::FutureExt;
 use clap::{App, load_yaml, ArgMatches};
+use rand::prelude::*;
+use rand_chacha::ChaCha20Rng;
 
 mod auth;
 mod proxy;
@@ -44,6 +46,16 @@ async fn run_reverse_proxy<'a>(matches: &'a ArgMatches<'a>) {
     }
 }
 
+fn generate_secret(){
+    let mut secret = [0u8; 32];
+    let mut rng = ChaCha20Rng::from_entropy();
+    rng.fill(&mut secret);
+
+    for byte in secret.iter() {
+        print!("{:02X}", byte);
+    }
+    println!("");
+}
 
 #[tokio::main]
 async fn main() {
@@ -52,6 +64,7 @@ async fn main() {
 
     match options.subcommand() {
         ("run", Some(matches)) => run_reverse_proxy(matches).await,
+        ("gensecret", _) => generate_secret(),
         _ => {}
     }
 }

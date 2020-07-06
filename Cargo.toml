@@ -22,6 +22,8 @@ cookie = "0.14.1"
 time = "0.2.16"
 tinytemplate = "1.1.0"
 url = "2.1.1"
+rand = "0.7.3"
+rand_chacha = "0.2.2"
 
 [dev-dependencies]
 hex-literal = "0.2.1"
