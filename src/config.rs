@@ -3,40 +3,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 use http::uri::Uri;
 use std::collections::HashMap;
-use clap::{App, Arg, ArgMatches};
+use clap::{ArgMatches};
 use generic_array::{GenericArray, ArrayLength};
 use generic_array::typenum::U32;
 use crate::auth::AuthConfig;
 use crate::credentials::{UserCredentials, CredentialsStore};
-
-
-pub fn parse_options<'a>() -> ArgMatches<'a>{
-    App::new("TiddlyWiki Authentication Proxy")
-        .arg(Arg::with_name("wiki_url")
-            .help("URL of a running TiddlyWiki node.js server")
-            .long("wiki_url")
-            .takes_value(true)
-            .required(true))
-        .arg(Arg::with_name("secret")
-            .help("Randomly generated 32-byte hexadecimal string")
-            .long("secret")
-            .takes_value(true)
-            .required(true))
-        .arg(Arg::with_name("users")
-            .help("Users' credentials")
-            .long("users")
-            .takes_value(true)
-            .required(true))
-        .arg(Arg::with_name("host")
-            .help("An IP-address of a server")
-            .long("host")
-            .takes_value(true))
-        .arg(Arg::with_name("port")
-            .help("Port to be used by the server")
-            .long("port")
-            .takes_value(true))
-        .get_matches()
-}
 
 
 #[derive(Debug)]

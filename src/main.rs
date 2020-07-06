@@ -5,18 +5,21 @@ use hyper::server::conn::AddrStream;
 use std::convert::Infallible;
 use hyper::{Body, Request};
 use futures::future::FutureExt;
+use clap::{App, load_yaml};
 
 mod auth;
 mod proxy;
 mod config;
-use config::{parse_options, ProxyConfig};
+use config::{ProxyConfig};
 mod service;
 mod credentials;
 
 
 #[tokio::main]
 async fn main() {
-    let options = parse_options();
+    let args_config = load_yaml!("../data/arguments.yml");
+    let options = App::from(args_config).get_matches();
+
     let config = match ProxyConfig::from_args(&options) {
         Ok(uri) => uri,
         Err((option, error)) => {
