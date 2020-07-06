@@ -1,0 +1,11 @@
+{
+    "title": "$:/plugins/poletaevvlad/proxy-logout",
+    "name": "TiddlyProxy Logout Button",
+    "description": "Adds logout button compatible with TiddlyWiki-Proxy",
+    "author": "Vlad Poletaev",
+    "version": "0.1.0",
+    "core-version": ">=5.0.0",
+    "source": "https://github.com/poletaevvlad/tiddlywiki-proxy",
+    "plugin-type": "plugin",
+    "list": ""
+}
