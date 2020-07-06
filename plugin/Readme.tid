@@ -1,0 +1,12 @@
+title: $:/plugins/poletaevvlad/proxy-logout/Readme
+
+This plugin adds a logout button to the list of tools. If it does not show up
+above the toolbar, you may need to enable it in the
+[[control panel|$:/ControlPanel]] (under Appearance/Toolbar/Page Toolbar).
+
+<$vars tv-config-toolbar-text="yes" tv-config-toolbar-class="">
+    {{$:/plugins/poletaevvlad/proxy-logout/Button}}
+</$vars>
+
+This plugin is intended to be compatible with
+[[TiddlyProxy|https://github.com/poletaevvlad/tiddlywiki-proxy]]

@@ -7,5 +7,5 @@
     "core-version": ">=5.0.0",
     "source": "https://github.com/poletaevvlad/tiddlywiki-proxy",
     "plugin-type": "plugin",
-    "list": ""
+    "list": "Readme"
 }
