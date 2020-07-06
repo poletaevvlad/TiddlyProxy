@@ -14,7 +14,7 @@ use tinytemplate::TinyTemplate;
 use futures::stream::TryStreamExt;
 
 
-fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a T) -> bool{
+fn get_username<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a T) -> Option<String>{
     match request.headers().get("Cookie").map(HeaderValue::to_str) {
         Some(Ok(cookies)) => {
             let auth_cookie = cookies.split(";")
@@ -28,52 +28,54 @@ fn is_authenitcated<'a, B, T: AuthConfig<'a>>(request: &Request<B>, config: &'a 
             match auth_cookie {
                 Some(token) => {
                     let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-                    Token::verify(&token, config, now).is_ok()
+                    Token::verify(&token, config, now).ok()
                 }
-                None => false
+                None => None
             }
         }
-        _ => false
+        _ => None
     }
 }
 
 
 pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Response<Body> {
-    let authenticated = is_authenitcated(&request, config.deref());
-    if authenticated {
-        let path = request.uri().path();
-        if path == "/logout" || path == "/logout/" {
-            let clear_cookie = Cookie::build("proxy_auth", "")
-                .path("/")
-                .http_only(true)
-                .expires(OffsetDateTime::unix_epoch())
-                .finish();
+    match get_username(&request, config.deref()) {
+        Some(username) => {
+            let path = request.uri().path();
+            if path == "/logout" || path == "/logout/" {
+                let clear_cookie = Cookie::build("proxy_auth", "")
+                    .path("/")
+                    .http_only(true)
+                    .expires(OffsetDateTime::unix_epoch())
+                    .finish();
 
-            Response::builder()
-                .status(StatusCode::SEE_OTHER)
-                .header("Location", "/")
-                .header("Set-Cookie", &clear_cookie.to_string())
-                .body(Body::empty())
-                .unwrap()
-        } else {
-            run_proxy(request, config.remote_uri(), "").await
-        }
-    } else {
-        match request.uri().path() {
-            "/" => run_login_page(request, config).await,
-            "/proxy:styles.css" => {
-                Response::builder()
-                    .status(StatusCode::OK)
-                    .header("Content-Type", "text/css")
-                    .body(Body::from(include_str!("../data/styles.css")))
-                    .unwrap()
-            }
-            _ => {
                 Response::builder()
                     .status(StatusCode::SEE_OTHER)
                     .header("Location", "/")
+                    .header("Set-Cookie", &clear_cookie.to_string())
                     .body(Body::empty())
                     .unwrap()
+            } else {
+                run_proxy(request, config.remote_uri(), &username).await
+            }
+        },
+        None => {
+            match request.uri().path() {
+                "/" => run_login_page(request, config).await,
+                "/proxy:styles.css" => {
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Type", "text/css")
+                        .body(Body::from(include_str!("../data/styles.css")))
+                        .unwrap()
+                }
+                _ => {
+                    Response::builder()
+                        .status(StatusCode::SEE_OTHER)
+                        .header("Location", "/")
+                        .body(Body::empty())
+                        .unwrap()
+                }
             }
         }
     }
@@ -179,7 +181,7 @@ mod tests {
     mod test_is_authenticated {
         use std::time::SystemTime;
         use hyper::Request;
-        use super::super::is_authenitcated;
+        use super::super::get_username;
         use crate::auth::Token;
         use crate::auth::tests::MockConfig;
 
@@ -187,7 +189,7 @@ mod tests {
         fn test_auth_no_cookies() {
             let request = Request::builder().body(()).unwrap();
             let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-            assert!(!is_authenitcated(&request, &config));
+            assert_eq!(get_username(&request, &config), None);
         }
 
         #[test]
@@ -198,7 +200,7 @@ mod tests {
                 .unwrap();
 
             let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-            assert!(!is_authenitcated(&request, &config));
+            assert_eq!(get_username(&request, &config), None);
         }
 
         #[test]
@@ -209,7 +211,7 @@ mod tests {
                 .unwrap();
 
             let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-            assert!(!is_authenitcated(&request, &config));
+            assert_eq!(get_username(&request, &config), None);
         }
 
         #[test]
@@ -220,7 +222,7 @@ mod tests {
                 .unwrap();
 
             let config = MockConfig::new(*b"00112233445566778899AABBCCDDEEFF");
-            assert!(!is_authenitcated(&request, &config));
+            assert_eq!(get_username(&request, &config), None);
         }
 
         #[test]
@@ -235,7 +237,7 @@ mod tests {
                 ))
                 .body(())
                 .unwrap();
-            assert!(!is_authenitcated(&request, &config));
+            assert_eq!(get_username(&request, &config), None);
         }
 
         #[test]
@@ -250,7 +252,7 @@ mod tests {
                 ))
                 .body(())
                 .unwrap();
-            assert!(is_authenitcated(&request, &config));
+            assert_eq!(get_username(&request, &config), Some(String::from("user")));
         }
     }
 
@@ -308,6 +310,7 @@ mod tests {
             let mock = Mock::new()
                 .expect_method(httpmock::Method::GET)
                 .expect_path("/hello")
+                .expect_header("X-Auth-Username", "user")
                 .return_body("remote content")
                 .create_on(&mock_server);
 
@@ -397,6 +400,7 @@ mod tests {
             let mock = Mock::new()
                 .expect_method(httpmock::Method::GET)
                 .expect_path("/")
+                .expect_header("X-Auth-Username", "user")
                 .return_body("remote content")
                 .create_on(&mock_server);
 

@@ -33,6 +33,14 @@ pub async fn run_proxy(req: Request<Body>, remote_uri: &Uri, username: &str) -> 
     let mut request_builder = Request::builder()
         .uri(transfer_parts(req.uri(), remote_uri))
         .method(req.method());
+
+    for (key, value) in req.headers().iter() {
+        let key_lower = key.as_str().to_lowercase();
+        if key_lower != "connection" || key_lower == "cookie" {
+            request_builder = request_builder.header(key, value);
+        }
+    }
+
     if username != "" {
         request_builder = request_builder.header("X-Auth-Username", username);
     }

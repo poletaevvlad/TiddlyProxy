@@ -54,7 +54,7 @@ impl Token {
     }
 
     pub fn verify<'a, T: AuthConfig<'a>>(value: &str, config: &'a T, time: u64) ->
-            Result<(), VerificationError> {
+            Result<String, VerificationError> {
         let b64_config = base64::Config::new(base64::CharacterSet::Standard, false);
 
         let pos = match value.find('.') {
@@ -79,7 +79,7 @@ impl Token {
         match String::from_utf8(token) {
             Ok(token_json) => match serde_json::from_str::<Token>(&token_json) {
                 Ok(value) => if value.expiration > time {
-                    Ok(())
+                    Ok(value.username)
                 } else {
                     Err(VerificationError::ExpirationError)
                 },
@@ -136,7 +136,7 @@ pub mod tests {
         );
     }
 
-    fn call_verify(token: &str, time: u64) -> Result<(), VerificationError> {
+    fn call_verify(token: &str, time: u64) -> Result<String, VerificationError> {
         let config = &MockConfig::new(*b"01234567890123456789012345678901");
         Token::verify(token, config, time)
     }
@@ -193,7 +193,7 @@ pub mod tests {
     fn test_valid_token() {
         assert_eq!(
             call_verify("eyJleHBpcmF0aW9uIjoxMDIwMzA0MCwidXNlcm5hbWUiOiJ1c2VyIn0.DhTHOlqNCFcje31bF9R6CWjvXDWKbIye4ON7ipTrVyw", 10203030),
-            Ok(())
+            Ok(String::from("user"))
         );
     }
 }
