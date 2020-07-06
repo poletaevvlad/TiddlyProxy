@@ -28,13 +28,13 @@ fn transfer_parts(local_uri: &Uri, remote_uri: &Uri) -> Uri {
 }
 
 
-pub async fn run_proxy(req: Request<Body>, remote_uri: &Uri) -> Response<Body> {
+pub async fn run_proxy(req: Request<Body>, remote_uri: &Uri, username: &str) -> Response<Body> {
     let client = Client::new();
     let mut request_builder = Request::builder()
         .uri(transfer_parts(req.uri(), remote_uri))
         .method(req.method());
-    for (key, value) in req.headers().iter() {
-        request_builder = request_builder.header(key, value);
+    if username != "" {
+        request_builder = request_builder.header("X-Auth-Username", username);
     }
     match client.request(request_builder.body(req.into_body()).unwrap()).await {
         Ok(response) => response,
@@ -83,7 +83,7 @@ mod tests {
             .expect_method(httpmock::Method::GET)
             .expect_path("/hello")
             .expect_query_param("q", "123")
-            .expect_header("X-Custom-Header", "Header-Value")
+            .expect_header("X-Auth-Username", "user")
             .return_status(200)
             .return_header("X-Return-Header", "Return-Header")
             .return_body("Hello, world")
@@ -92,11 +92,10 @@ mod tests {
         let request = Request::builder()
             .uri("/hello?q=123".parse::<Uri>().unwrap())
             .method("GET")
-            .header("X-Custom-Header", "Header-Value")
             .body(Body::empty())
             .unwrap();
 
-        let response = run_proxy(request, &url).await;
+        let response = run_proxy(request, &url, "user").await;
         assert_eq!(response.status(), 200);
         assert_eq!(response.headers().get("X-Return-Header").unwrap(), "Return-Header");
         let body = String::from_utf8(response.into_body()
@@ -125,7 +124,7 @@ mod tests {
             .body(Body::from("Body"))
             .unwrap();
 
-        let response = run_proxy(request, &url).await;
+        let response = run_proxy(request, &url, "").await;
         assert_eq!(response.status(), 200);
         let body = String::from_utf8(response.into_body()
             .map(|c| c.unwrap().to_vec())
@@ -142,7 +141,7 @@ mod tests {
             .method("GET")
             .body(Body::empty())
             .unwrap();
-        let response = run_proxy(request, &url).await;
+        let response = run_proxy(request, &url, "").await;
         assert_eq!(response.status(), 502);
     }
 

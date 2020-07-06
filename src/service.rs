@@ -56,7 +56,7 @@ pub async fn handle(request: Request<Body>, config: Arc<ProxyConfig>) -> Respons
                 .body(Body::empty())
                 .unwrap()
         } else {
-            run_proxy(request, config.remote_uri()).await
+            run_proxy(request, config.remote_uri(), "").await
         }
     } else {
         match request.uri().path() {
